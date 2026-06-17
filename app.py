@@ -13,8 +13,12 @@ def load_data():
         return pd.read_csv(FILE_NAME)
     except FileNotFoundError:
         return pd.DataFrame(columns=[
-            "Student_ID", "Name", "Class",
-            "Math", "Science", "English"
+            "Student_ID",
+            "Name",
+            "Class",
+            "Math",
+            "Science",
+            "English"
         ])
 
 
@@ -26,22 +30,14 @@ def save_data(df):
 
 
 # -----------------------------
-# DELETE STUDENT
+# GRADE
 # -----------------------------
-def delete_student(df, sid):
-    df = df[df["Student_ID"] != sid]
-    return df
-
-
-# -----------------------------
-# GRADE FUNCTION
-# -----------------------------
-def grade(p):
-    if p >= 80:
+def grade(percent):
+    if percent >= 80:
         return "A"
-    elif p >= 60:
+    elif percent >= 60:
         return "B"
-    elif p >= 40:
+    elif percent >= 40:
         return "C"
     else:
         return "Fail"
@@ -50,128 +46,290 @@ def grade(p):
 # -----------------------------
 # PERFORMANCE
 # -----------------------------
-def performance(df):
+def calculate_performance(df):
+
     subjects = ["Math", "Science", "English"]
 
     df["Total"] = df[subjects].sum(axis=1)
+
     df["Average"] = df[subjects].mean(axis=1)
+
     df["Percentage"] = (df["Total"] / 300) * 100
+
     df["Grade"] = df["Percentage"].apply(grade)
 
     return df
 
 
 # -----------------------------
-# UI START
+# TITLE
 # -----------------------------
 st.title("🎓 Student Performance Analytics System")
 
 df = load_data()
 
 menu = st.sidebar.selectbox(
-    "Menu",
-    ["View Students", "Add Student", "Delete Student", "Analytics", "Graph"]
+    "Select Option",
+    [
+        "View Students",
+        "Add Student",
+        "Update Student",
+        "Delete Student",
+        "Analytics",
+        "Graphs",
+        "Export Report"
+    ]
 )
 
-
 # -----------------------------
-# VIEW STUDENTS
+# VIEW
 # -----------------------------
 if menu == "View Students":
+
     st.subheader("Student Records")
+
     st.dataframe(df)
 
-
 # -----------------------------
-# ADD STUDENT
+# ADD
 # -----------------------------
 elif menu == "Add Student":
-    st.subheader("Add Student")
 
-    sid = st.number_input("Student ID", step=1)
+    st.subheader("Add New Student")
+
+    sid = st.number_input(
+        "Student ID",
+        min_value=1,
+        step=1
+    )
+
     name = st.text_input("Name")
+
     cls = st.text_input("Class")
 
-    math = st.number_input("Math Marks", step=1)
-    science = st.number_input("Science Marks", step=1)
-    english = st.number_input("English Marks", step=1)
+    math = st.number_input(
+        "Math",
+        min_value=0,
+        max_value=100
+    )
+
+    science = st.number_input(
+        "Science",
+        min_value=0,
+        max_value=100
+    )
+
+    english = st.number_input(
+        "English",
+        min_value=0,
+        max_value=100
+    )
 
     if st.button("Add Student"):
-        new = pd.DataFrame([{
-            "Student_ID": sid,
-            "Name": name,
-            "Class": cls,
-            "Math": math,
-            "Science": science,
-            "English": english
-        }])
 
-        df = pd.concat([df, new], ignore_index=True)
-        save_data(df)
+        if not name or not cls:
+            st.error("All fields required")
 
-        st.success("Student Added Successfully")
+        elif sid in df["Student_ID"].values:
+            st.error("Student ID already exists")
 
+        else:
 
-# -----------------------------
-# DELETE STUDENT
-# -----------------------------
-elif menu == "Delete Student":
-    st.subheader("Delete Student")
+            new_student = pd.DataFrame([{
+                "Student_ID": sid,
+                "Name": name,
+                "Class": cls,
+                "Math": math,
+                "Science": science,
+                "English": english
+            }])
 
-    sid = st.number_input("Enter Student ID to Delete", step=1)
+            df = pd.concat(
+                [df, new_student],
+                ignore_index=True
+            )
 
-    if st.button("Delete Student"):
-        if sid in df["Student_ID"].values:
-            df = delete_student(df, sid)
             save_data(df)
-            st.success("Student Deleted Successfully")
+
+            st.success("Student Added Successfully")
+
+# -----------------------------
+# UPDATE
+# -----------------------------
+elif menu == "Update Student":
+
+    st.subheader("Update Student Marks")
+
+    sid = st.number_input(
+        "Student ID",
+        min_value=1,
+        step=1
+    )
+
+    math = st.number_input(
+        "New Math Marks",
+        min_value=0,
+        max_value=100
+    )
+
+    science = st.number_input(
+        "New Science Marks",
+        min_value=0,
+        max_value=100
+    )
+
+    english = st.number_input(
+        "New English Marks",
+        min_value=0,
+        max_value=100
+    )
+
+    if st.button("Update"):
+
+        if sid in df["Student_ID"].values:
+
+            df.loc[
+                df["Student_ID"] == sid,
+                ["Math", "Science", "English"]
+            ] = [math, science, english]
+
+            save_data(df)
+
+            st.success("Updated Successfully")
+
         else:
             st.error("Student Not Found")
 
+# -----------------------------
+# DELETE
+# -----------------------------
+elif menu == "Delete Student":
+
+    st.subheader("Delete Student")
+
+    sid = st.number_input(
+        "Student ID",
+        min_value=1,
+        step=1
+    )
+
+    if st.button("Delete"):
+
+        if sid in df["Student_ID"].values:
+
+            df = df[
+                df["Student_ID"] != sid
+            ]
+
+            save_data(df)
+
+            st.success("Deleted Successfully")
+
+        else:
+            st.error("Student Not Found")
 
 # -----------------------------
 # ANALYTICS
 # -----------------------------
 elif menu == "Analytics":
-    st.subheader("Analytics")
+
+    st.subheader("Performance Analytics")
 
     if len(df) > 0:
-        df = performance(df)
 
-        st.write(df)
+        df = calculate_performance(df)
 
-        st.write("Top Students")
-        st.dataframe(df.sort_values("Percentage", ascending=False).head(5))
+        st.dataframe(df)
 
-        st.write("Weak Students")
-        st.dataframe(df[df["Percentage"] < 40])
+        st.write("### Top 5 Students")
 
-        st.write("Subject Average")
-        st.write(df[["Math", "Science", "English"]].mean())
+        st.dataframe(
+            df.sort_values(
+                "Percentage",
+                ascending=False
+            ).head(5)
+        )
 
-        st.write("Class Wise Performance")
-        st.write(df.groupby("Class")["Percentage"].mean())
+        st.write("### Weak Students")
 
+        st.dataframe(
+            df[df["Percentage"] < 40]
+        )
+
+        st.write("### Subject Average")
+
+        st.write(
+            df[
+                ["Math", "Science", "English"]
+            ].mean()
+        )
+
+        st.write("### Class Wise Performance")
+
+        st.write(
+            df.groupby("Class")[
+                "Percentage"
+            ].mean()
+        )
 
 # -----------------------------
-# GRAPH
+# GRAPHS
 # -----------------------------
-elif menu == "Graph":
-    st.subheader("Subject Wise Average Graph")
+elif menu == "Graphs":
+
+    st.subheader("Visual Analytics")
 
     if len(df) > 0:
-        df = performance(df)
 
-        avg = {
-            "Math": df["Math"].mean(),
-            "Science": df["Science"].mean(),
-            "English": df["English"].mean()
-        }
+        df = calculate_performance(df)
+
+        avg = df[
+            ["Math", "Science", "English"]
+        ].mean()
 
         fig, ax = plt.subplots()
-        ax.bar(avg.keys(), avg.values())
+
+        ax.bar(
+            avg.index,
+            avg.values
+        )
+
+        ax.set_title(
+            "Subject Wise Average"
+        )
 
         ax.set_ylabel("Marks")
-        ax.set_title("Subject Wise Average")
 
         st.pyplot(fig)
+
+# -----------------------------
+# EXPORT REPORT
+# -----------------------------
+elif menu == "Export Report":
+
+    st.subheader("Generate Report")
+
+    if len(df) > 0:
+
+        report = calculate_performance(df)
+
+        report.to_csv(
+            "performance_report.csv",
+            index=False
+        )
+
+        st.success(
+            "Report Generated"
+        )
+
+        with open(
+            "performance_report.csv",
+            "rb"
+        ) as file:
+
+            st.download_button(
+                "Download Report",
+                file,
+                "performance_report.csv",
+                "text/csv"
+            )
